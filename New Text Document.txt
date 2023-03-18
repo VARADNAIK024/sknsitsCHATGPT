@@ -1,0 +1,65 @@
+import express from 'express';
+import * as dotenv from 'dotenv';
+import cors from 'cors';
+import { Configuration, OpenAIApi } from 'openai';
+
+//to be able to use dotenv variable we put
+dotenv.config();
+
+// console.log(process.env.OPENAI_API_KEY);
+
+
+
+//after this we can start with the configration
+const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+
+//AFTER THIS WE HAVE TO CREATE A INSTANT OF OPEN API
+const openai = new OpenAIApi(configuration);
+
+//now we need to instialise are expree application
+const app = express();
+app.use(cors()); // its allows us to make across requests its allows server to call from front-end
+app.use(express.json());//its will allows us to pass JSON frontend from backend
+
+//FROM .get U CAN RECEIVE LOT OF DATA FROM FRONT-END
+app.get('/', async (req, res) => {
+    res.status(200).send({
+        message: 'HELLO FROM AESTHETIC',
+    })
+});
+
+
+// .POST allows us a Body
+//because of post async req,res we can now get data from body of front-end
+app.post('/', async (req, res) => {
+    try {
+        const prompt = req.body.prompt;
+
+        //now we need to get a Response from the OpenAPI //--createcompletion is FUN() thats except the object
+        const response = await openai.createChatCompletion({
+            model: "text-davinci-003",
+            prompt:`${prompt}`,
+            temperature: 0,//highter the temp value the model will make more risk
+            max_tokens: 3000, // AI responce in words
+            top_p: 1,
+            frequency_penalty: 0.5, //A.I will not ans similar ans again
+            presence_penalty: 0,
+            
+        })
+        res.status*(200).send({
+            bot:response.data.choices[0].text
+        })
+    }
+
+    catch (error) { //if anything goes wrong we can conole.log that
+        console.log(error);
+        res.status(500).send({error})
+    }
+
+})
+
+//to listen by server
+
+app.listen(5000,() => console.log('server is running on port http://localhost:5000'));

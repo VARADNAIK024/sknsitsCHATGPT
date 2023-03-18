@@ -1,0 +1,148 @@
+import bot from './assets/bot.svg';
+import user from './assets/user.svg';
+
+const form = document.querySelector('form');
+const chatContainer = document.querySelector('#chat_container');
+
+// created a variable
+let loadInterval;
+
+//craeting functions to load things
+// after IF{} LOOP --- This all function will REPEAT every 300 SEC
+
+function loader(element){
+    element.textContent='' //we wll make it empty string at start -> for eg(...)
+  
+//it is function thats accepts another Call-Back function    
+    loadInterval = setInterval(() => {
+    element.textContent +='.';
+
+    //if loading indicator has reach 3 ... we have to RESET it
+
+    if(element.textContent === '....')
+    {
+        element.textContent='';
+     }
+         },300) //300 is number of milisecond
+}
+
+
+//this function is used to write text word by word as A.I is thinking and Writing
+//its Gives better User Experince
+function typeText(element,text) //--taking element , text as parameters
+{
+    let index=0;
+
+    let interval =setInterval(()=>{
+        if(index < text.length){//if index is smaller than text.lenght means we still typing the ans
+        element.innerHTML += text.charAt(index);//it will take CHAR under specific index -- if are still typing 
+        index ++;//index ++ for increment
+        }else {
+            clearInterval(interval);
+        }
+    },20)
+
+}
+
+
+//create unique function -- to map over them
+
+function generateUniqueId()
+{
+    const timestamp = Date.now();
+    const randomNumber = Math.random();
+    const hexadecimalString = randomNumber.toString(16);
+
+    return 'id-${timestamp}-${hexadecimalString}';
+
+}
+
+
+//for AI chat and for color to know is AI speaking or user
+function chatStripe(isAi, value,uniqueId){
+     // 1. create a temmplate String without template string we canot add spaces
+      // 2. src="${isAi ? bot: user}" ----if it is AI:BOt or USER
+       //3. <div class="message" id=${uniqueId}>${value}</div>  Value = A.I generated Value
+      
+       return (
+        `
+        <div class="wrapper ${isAi && 'ai'}">
+            <div class="chat">
+                <div class="profile">
+                    <img 
+                      src=${isAi ? bot : user} 
+                      alt="${isAi ? 'bot' : 'user'}" 
+                    />
+                </div>
+                <div class="message" id=${uniqueId}>${value}</div>
+            </div>
+        </div>
+    `
+    )
+}
+
+    //lets create a handle submit Function going to be triggered of A.I
+    const handleSubmit = async (e) =>
+    {
+    e.preventDefault(); //its to avoid reload of browser after submiting it
+    const data = new FormData(form); //to get data which we type in forms
+
+    //user's chatstripe
+    chatContainer.innerHTML += chatStripe(false,data.get('prompt')); //false because it is not A.I it is user
+    form.reset(); //to reset the form
+
+    //bot's chatstripe 
+    const uniqueId = generateUniqueId();
+    chatContainer.innerHTML += chatStripe(true," ",uniqueId); //this it is True because A.I is Typing
+
+    //As user is going to Type we will keep Scrolling Down
+    chatContainer.scrollTop=chatContainer.scrollHeight; //this will put NEW msg in VIEW
+      
+    //need to fetch newly created Div
+    const messageDiv = document.getElementById(uniqueId);
+
+    loader(messageDiv);
+
+    //fetch data from server -> bot's responce
+    const responce = await fetch('http://localhost:5000',{
+        method:'POST',
+        headers:     //going be and object 
+        { 
+            'Content-Type': 'application/json'
+
+        },
+        body: JSON.stringify({
+            prompt:data.get('prompt') // this is the area where msg is comming from are text Area
+        })
+
+    })
+    clearInterval(loadInterval);//after we get responce we need to clear interval & load interval because we are no longer loading 
+    messageDiv.innerHTML='';//empty string because we are not sure at which point we are for eg . dot 2 dot or 3 dot
+
+    if(responce.ok){
+        const data = await responce.json(); // giving actual responce from Backend
+        const parsedData = data.bot.trim();
+
+        console.log({parsedData})
+        
+        //Finally now we can pass the msg
+        typeText(messageDiv, parsedData);
+    }else{
+        const err=await responce.text();
+        messageDiv.innerHTML ="Something went Wrong";
+        alert(err);
+
+    }
+
+    }
+
+
+
+    //to able to see change we ade in submit we need to write a code
+    form.addEventListener('submit',handleSubmit);
+    form.addEventListener('keyup',(e) => {
+        if(e.keyCode === 13) //13 is keycode for ENTER in keypad which is used to submit code
+        {
+            handleSubmit(e);
+        }
+    })
